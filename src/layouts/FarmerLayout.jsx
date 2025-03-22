@@ -18,7 +18,6 @@ function FarmerLayout() {
   
   const handleLogout = async () => {
     try {
-      await logout();
       navigate('/login');
     } catch (error) {
       console.error('Failed to log out', error);
