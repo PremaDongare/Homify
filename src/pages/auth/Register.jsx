@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { FaUser, FaEnvelope, FaLock, FaPhone, FaMapMarkerAlt, FaUserTie } from 'react-icons/fa';
-import { useAuth } from '../../contexts/AuthContext';
+import { FaUser, FaEnvelope, FaLock, FaPhone, FaMapMarkerAlt } from 'react-icons/fa';
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../firebase";  
 
 function Register() {
   const { t } = useTranslation();
-  const { register, error } = useAuth();
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -17,20 +17,24 @@ function Register() {
     confirmPassword: '',
     phone: '',
     address: '',
-    role: 'buyer', // Default role
+    role: 'buyer',
   });
-  
+
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [errorMessage, setErrorMessage] = useState("");
+
+  // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
+    console.log(`Updating ${name} field with value:`, value);  // Debugging
+
     setFormData({
       ...formData,
       [name]: value,
     });
-    
-    // Clear error for this field
+
+    // Clear error when user starts typing
     if (formErrors[name]) {
       setFormErrors({
         ...formErrors,
@@ -38,73 +42,77 @@ function Register() {
       });
     }
   };
-  
+
+  // Validate Form Inputs
   const validateForm = () => {
     const errors = {};
-    
-    if (!formData.name.trim()) {
-      errors.name = t('auth.nameRequired');
-    }
-    
+
+    if (!formData.name.trim()) errors.name = "Name is required";
     if (!formData.email.trim()) {
-      errors.email = t('auth.emailRequired');
+      errors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = t('auth.emailInvalid');
+      errors.email = "Invalid email format";
     }
-    
+
     if (!formData.password) {
-      errors.password = t('auth.passwordRequired');
+      errors.password = "Password is required";
     } else if (formData.password.length < 6) {
-      errors.password = t('auth.passwordTooShort');
+      errors.password = "Password must be at least 6 characters";
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
-      errors.confirmPassword = t('auth.passwordsDoNotMatch');
+      errors.confirmPassword = "Passwords do not match";
     }
-    
-    if (!formData.phone.trim()) {
-      errors.phone = t('auth.phoneRequired');
-    }
-    
-    if (!formData.address.trim()) {
-      errors.address = t('auth.addressRequired');
-    }
-    
+
+    if (!formData.phone.trim()) errors.phone = "Phone number is required";
+    if (!formData.address.trim()) errors.address = "Address is required";
+
     return errors;
   };
-  
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    console.log("Signup button clicked");
+
+    console.log("Form data before validation:", formData);
+
+    setErrorMessage("");
+
     const errors = validateForm();
+    console.log("Validation errors:", errors);
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
-    
+
+    console.log("All inputs are valid. Proceeding with Firebase signup...");
+
     setIsSubmitting(true);
-    
+
     try {
-      // Remove confirmPassword before sending to API
-      const { confirmPassword, ...userData } = formData;
-      await register(userData);
-      
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      console.log("User created successfully:", userCredential.user);
+
       // Redirect based on role
-      if (formData.role === 'farmer') {
-        navigate('/farmer');
-      } else if (formData.role === 'buyer') {
-        navigate('/buyer');
-      } else if (formData.role === 'admin') {
-        navigate('/admin');
-      }
+      setTimeout(() => {
+        if (formData.role === 'farmer') {
+          navigate('/farmer');
+        } else if (formData.role === 'buyer') {
+          navigate('/buyer');
+        } else if (formData.role === 'admin') {
+          navigate('/admin');
+        }
+      }, 2000);
     } catch (error) {
-      console.error('Registration failed:', error);
-      // Error is handled by AuthContext and stored in error state
+      console.error("Error signing up:", error.code, error.message);
+      setErrorMessage(error.message);
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -121,190 +129,89 @@ function Register() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {error && (
+          {errorMessage && (
             <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-              {t(error)}
+              {errorMessage}
             </div>
           )}
-          
+
           <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                {t('auth.name')}
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaUser className="text-gray-400" />
-                </div>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className={`block w-full pl-10 pr-3 py-2 border ${
-                    formErrors.name ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
-                />
-              </div>
-              {formErrors.name && (
-                <p className="mt-2 text-sm text-red-600">{formErrors.name}</p>
-              )}
-            </div>
+            {/* Name Input */}
+            <InputField
+              id="name"
+              label="Name"
+              icon={<FaUser />}
+              type="text"
+              value={formData.name}
+              onChange={handleChange}
+              error={formErrors.name}
+            />
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                {t('auth.email')}
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaEnvelope className="text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className={`block w-full pl-10 pr-3 py-2 border ${
-                    formErrors.email ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
-                />
-              </div>
-              {formErrors.email && (
-                <p className="mt-2 text-sm text-red-600">{formErrors.email}</p>
-              )}
-            </div>
+            {/* Email Input */}
+            <InputField
+              id="email"
+              label="Email"
+              icon={<FaEnvelope />}
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              error={formErrors.email}
+            />
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                {t('auth.password')}
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaLock className="text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={`block w-full pl-10 pr-3 py-2 border ${
-                    formErrors.password ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
-                />
-              </div>
-              {formErrors.password && (
-                <p className="mt-2 text-sm text-red-600">{formErrors.password}</p>
-              )}
-            </div>
+            {/* Password Input */}
+            <InputField
+              id="password"
+              label="Password"
+              icon={<FaLock />}
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              error={formErrors.password}
+            />
 
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                {t('auth.confirmPassword')}
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaLock className="text-gray-400" />
-                </div>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className={`block w-full pl-10 pr-3 py-2 border ${
-                    formErrors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
-                />
-              </div>
-              {formErrors.confirmPassword && (
-                <p className="mt-2 text-sm text-red-600">{formErrors.confirmPassword}</p>
-              )}
-            </div>
+            {/* Confirm Password Input */}
+            <InputField
+              id="confirmPassword"
+              label="Confirm Password"
+              icon={<FaLock />}
+              type="password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              error={formErrors.confirmPassword}
+            />
 
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                {t('auth.phone')}
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaPhone className="text-gray-400" />
-                </div>
-                <input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className={`block w-full pl-10 pr-3 py-2 border ${
-                    formErrors.phone ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
-                />
-              </div>
-              {formErrors.phone && (
-                <p className="mt-2 text-sm text-red-600">{formErrors.phone}</p>
-              )}
-            </div>
+            {/* Phone Input */}
+            <InputField
+              id="phone"
+              label="Phone"
+              icon={<FaPhone />}
+              type="text"
+              value={formData.phone}
+              onChange={handleChange}
+              error={formErrors.phone}
+            />
 
-            <div>
-              <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                {t('auth.address')}
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaMapMarkerAlt className="text-gray-400" />
-                </div>
-                <input
-                  id="address"
-                  name="address"
-                  type="text"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className={`block w-full pl-10 pr-3 py-2 border ${
-                    formErrors.address ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
-                />
-              </div>
-              {formErrors.address && (
-                <p className="mt-2 text-sm text-red-600">{formErrors.address}</p>
-              )}
-            </div>
+            {/* Address Input */}
+            <InputField
+              id="address"
+              label="Address"
+              icon={<FaMapMarkerAlt />}
+              type="text"
+              value={formData.address}
+              onChange={handleChange}
+              error={formErrors.address}
+            />
 
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                {t('auth.role')}
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaUserTie className="text-gray-400" />
-                </div>
-                <select
-                  id="role"
-                  name="role"
-                  value={formData.role}
-                  onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                >
-                  <option value="farmer">{t('auth.farmer')}</option>
-                  <option value="buyer">{t('auth.buyer')}</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <motion.button
-                type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={isSubmitting}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-              >
-                {isSubmitting ? t('auth.signingUp') : t('auth.signUp')}
-              </motion.button>
-            </div>
+            {/* Submit Button */}
+            <motion.button
+              type="submit"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              disabled={isSubmitting}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+            >
+              {isSubmitting ? "Signing up..." : "Sign Up"}
+            </motion.button>
           </form>
         </div>
       </div>
@@ -312,4 +219,25 @@ function Register() {
   );
 }
 
-export default Register; 
+// Input Field Component (Reusable)
+const InputField = ({ id, label, icon, type, value, onChange, error }) => (
+  <div>
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>
+    <div className="mt-1 relative rounded-md shadow-sm">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        {icon}
+      </div>
+      <input
+        id={id}
+        name={id}
+        type={type}
+        value={value}
+        onChange={onChange}
+        className={`block w-full pl-10 pr-3 py-2 border ${error ? 'border-red-300' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500`}
+      />
+    </div>
+    {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+  </div>
+);
+
+export default Register;
