@@ -82,7 +82,7 @@ function FarmerLayout() {
               </NavLink>
               
               <NavLink 
-                to="/farmer/waste-prediction" 
+                to="/farmer/prediction" 
                 className={({ isActive }) => 
                   `flex items-center px-4 py-2 rounded-md transition-colors ${
                     isActive 

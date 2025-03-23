@@ -1,238 +1,236 @@
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { FaChartLine, FaCalendarAlt, FaLeaf } from 'react-icons/fa';
-import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import React, { useState } from "react";
+import axios from "axios";
 
-// Register ChartJS components
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+const App = () => {
+  const [cropType, setCropType] = useState("");
+  const [wasteType, setWasteType] = useState("");
+  const [farmSize, setFarmSize] = useState("");
+  const [predictedWaste, setPredictedWaste] = useState(null);
+  const [wastePrice, setWastePrice] = useState(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
 
-function WastePrediction() {
-  const { t } = useTranslation();
-  const [selectedCrop, setSelectedCrop] = useState('rice');
-  const [predictionData, setPredictionData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Mock crops
-  const crops = [
-    { id: 'rice', name: 'Rice' },
-    { id: 'wheat', name: 'Wheat' },
-    { id: 'corn', name: 'Corn' },
-    { id: 'sugarcane', name: 'Sugarcane' },
-  ];
-  
-  useEffect(() => {
-    fetchPredictionData();
-  }, [selectedCrop]);
-  
-  const fetchPredictionData = async () => {
+  // Dropdown Options
+  const cropOptions = ["Soybean", "Wheat", "Sugarcane", "Rice", "Sunflower", "Barley"];
+  const wasteOptions = ["Husks", "Leaves", "Stalks", "Residues", "Straw"];
+
+  // 🔹 Predict Waste Function
+  const handlePredictWaste = async () => {
     setIsLoading(true);
-    
+    setError("");
+    setPredictedWaste(null);
+    setWastePrice(null);
+
+    console.log("Sending data for waste prediction:", { cropType, wasteType, farmSize });
+
+    // Validation: Check if inputs are provided
+    if (!cropType || !wasteType || !farmSize) {
+      setError("Please select crop type, waste type, and enter farm size.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // This would normally fetch from the API
-      // For now, we'll use mock data
-      const mockData = {
-        rice: {
-          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-          datasets: [
-            {
-              label: 'Predicted Waste (kg)',
-              data: [0, 0, 0, 0, 0, 300, 500, 450, 400, 350, 200, 0],
-              borderColor: 'rgb(34, 197, 94)',
-              backgroundColor: 'rgba(34, 197, 94, 0.5)',
-            },
-            {
-              label: 'Historical Waste (kg)',
-              data: [0, 0, 0, 0, 0, 280, 480, 430, 380, 330, 180, 0],
-              borderColor: 'rgb(59, 130, 246)',
-              backgroundColor: 'rgba(59, 130, 246, 0.5)',
-            },
-          ],
-        },
-        wheat: {
-          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-          datasets: [
-            {
-              label: 'Predicted Waste (kg)',
-              data: [200, 250, 300, 350, 400, 0, 0, 0, 0, 0, 0, 150],
-              borderColor: 'rgb(34, 197, 94)',
-              backgroundColor: 'rgba(34, 197, 94, 0.5)',
-            },
-            {
-              label: 'Historical Waste (kg)',
-              data: [180, 230, 280, 330, 380, 0, 0, 0, 0, 0, 0, 130],
-              borderColor: 'rgb(59, 130, 246)',
-              backgroundColor: 'rgba(59, 130, 246, 0.5)',
-            },
-          ],
-        },
-        corn: {
-          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-          datasets: [
-            {
-              label: 'Predicted Waste (kg)',
-              data: [0, 0, 0, 150, 250, 350, 400, 450, 300, 200, 0, 0],
-              borderColor: 'rgb(34, 197, 94)',
-              backgroundColor: 'rgba(34, 197, 94, 0.5)',
-            },
-            {
-              label: 'Historical Waste (kg)',
-              data: [0, 0, 0, 130, 230, 330, 380, 430, 280, 180, 0, 0],
-              borderColor: 'rgb(59, 130, 246)',
-              backgroundColor: 'rgba(59, 130, 246, 0.5)',
-            },
-          ],
-        },
-        sugarcane: {
-          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-          datasets: [
-            {
-              label: 'Predicted Waste (kg)',
-              data: [300, 350, 400, 450, 500, 550, 600, 550, 500, 450, 400, 350],
-              borderColor: 'rgb(34, 197, 94)',
-              backgroundColor: 'rgba(34, 197, 94, 0.5)',
-            },
-            {
-              label: 'Historical Waste (kg)',
-              data: [280, 330, 380, 430, 480, 530, 580, 530, 480, 430, 380, 330],
-              borderColor: 'rgb(59, 130, 246)',
-              backgroundColor: 'rgba(59, 130, 246, 0.5)',
-            },
-          ],
-        },
-      };
-      
-      setPredictionData(mockData[selectedCrop]);
-    } catch (error) {
-      console.error('Error fetching prediction data:', error);
+      const response = await axios.post("http://127.0.0.1:5000/api/predict", {
+        cropType,
+        wasteType,
+        farmSize: parseFloat(farmSize),
+      });
+
+      console.log("Waste prediction response:", response.data);
+
+      if (response.data.success) {
+        setPredictedWaste(response.data.predictedWaste);
+      } else {
+        setError(response.data.error || "Error predicting waste. Please try again.");
+      }
+    } catch (err) {
+      console.error("API error:", err.response ? err.response.data : err.message);
+      setError("Error predicting waste. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        beginAtZero: true,
-      },
-    },
+
+  // 🔹 Predict Price Function
+  const handlePredictPrice = async () => {
+    setIsLoadingPrice(true);
+    setError("");
+    setWastePrice(null);
+
+    console.log("Sending data for price prediction:", { cropType, wasteType, farmSize, predictedWaste });
+
+    // Validation: Ensure required values exist
+    if (!cropType || !wasteType || !farmSize || !predictedWaste) {
+      setError("Please complete the waste prediction first.");
+      setIsLoadingPrice(false);
+      return;
+    }
+
+    try {
+      const response = await axios.post("http://127.0.0.1:5000/api/predict_price", {
+        cropType,
+        wasteType,
+        farmSize: parseFloat(farmSize),
+        predictedWaste: parseFloat(predictedWaste),
+      });
+
+      console.log("Price prediction response:", response.data);
+
+      if (response.data.success) {
+        setWastePrice(response.data.wastePrice);
+      } else {
+        setError(response.data.error || "Error predicting price. Please try again.");
+      }
+    } catch (err) {
+      console.error("API error:", err.response ? err.response.data : err.message);
+      setError("Error predicting price. Please try again.");
+    } finally {
+      setIsLoadingPrice(false);
+    }
   };
-  
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-8">
-        {t('wastePrediction.title')}
-      </h1>
-      
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">
-            {t('wastePrediction.selectCrop')}
-          </h2>
-          
-          <div className="flex flex-wrap gap-2">
-            {crops.map((crop) => (
-              <motion.button
-                key={crop.id}
-                onClick={() => setSelectedCrop(crop.id)}
-                className={`px-4 py-2 rounded-md flex items-center ${
-                  selectedCrop === crop.id
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <FaLeaf className="mr-2" />
-                {crop.name}
-              </motion.button>
+    <div style={styles.mainContainer}>
+      {/* Crop Waste Prediction Container */}
+      <div style={styles.container}>
+        <h2 style={styles.heading}>Crop Waste Prediction</h2>
+
+        {/* Crop Type Dropdown */}
+        <div style={styles.formGroup}>
+          <label style={styles.label}>Crop Type:</label>
+          <select value={cropType} onChange={(e) => setCropType(e.target.value)} style={styles.input}>
+            <option value="">Select Crop Type</option>
+            {cropOptions.map((crop, index) => (
+              <option key={index} value={crop}>{crop}</option>
             ))}
-          </div>
+          </select>
         </div>
-        
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-          </div>
-        ) : (
-          <div className="h-64 md:h-96">
-            {predictionData && <Line options={chartOptions} data={predictionData} />}
-          </div>
-        )}
+
+        {/* Waste Type Dropdown */}
+        <div style={styles.formGroup}>
+          <label style={styles.label}>Waste Type:</label>
+          <select value={wasteType} onChange={(e) => setWasteType(e.target.value)} style={styles.input}>
+            <option value="">Select Waste Type</option>
+            {wasteOptions.map((waste, index) => (
+              <option key={index} value={waste}>{waste}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Farm Size Input */}
+        <div style={styles.formGroup}>
+          <label style={styles.label}>Farm Size (hectares):</label>
+          <input
+            type="number"
+            value={farmSize}
+            onChange={(e) => setFarmSize(e.target.value)}
+            placeholder="Enter farm size"
+            style={styles.input}
+          />
+        </div>
+
+        {/* Predict Waste Button */}
+        <button onClick={handlePredictWaste} disabled={isLoading} style={isLoading ? styles.buttonDisabled : styles.button}>
+          {isLoading ? "Predicting..." : "Predict Waste"}
+        </button>
+
+        {/* Prediction Result */}
+        {predictedWaste !== null && <p style={styles.result}>Predicted Waste: {predictedWaste} tons</p>}
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <FaChartLine className="mr-2 text-green-600" />
-            {t('wastePrediction.insights')}
-          </h2>
-          
-          <div className="space-y-4">
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h3 className="font-medium text-green-800">
-                {t('wastePrediction.peakProduction')}
-              </h3>
-              <p className="text-green-700">
-                {selectedCrop === 'rice' && t('wastePrediction.insights.rice.peak')}
-                {selectedCrop === 'wheat' && t('wastePrediction.insights.wheat.peak')}
-                {selectedCrop === 'corn' && t('wastePrediction.insights.corn.peak')}
-                {selectedCrop === 'sugarcane' && t('wastePrediction.insights.sugarcane.peak')}
-              </p>
-            </div>
-            
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-medium text-blue-800">
-                {t('wastePrediction.marketDemand')}
-              </h3>
-              <p className="text-blue-700">
-                {selectedCrop === 'rice' && t('wastePrediction.insights.rice.demand')}
-                {selectedCrop === 'wheat' && t('wastePrediction.insights.wheat.demand')}
-                {selectedCrop === 'corn' && t('wastePrediction.insights.corn.demand')}
-                {selectedCrop === 'sugarcane' && t('wastePrediction.insights.sugarcane.demand')}
-              </p>
-            </div>
-          </div>
+
+      {/* Waste Price Prediction Container */}
+      <div style={styles.container}>
+        <h2 style={styles.heading}>Waste Price Prediction</h2>
+
+        {/* Predicted Waste Input */}
+        <div style={styles.formGroup}>
+          <label style={styles.label}>Predicted Waste (tons):</label>
+          <input
+            type="number"
+            value={predictedWaste || ""}
+            disabled
+            placeholder="Predicted waste will appear here"
+            style={styles.input}
+          />
         </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <FaCalendarAlt className="mr-2 text-green-600" />
-            {t('wastePrediction.recommendations')}
-          </h2>
-          
-          <div className="space-y-4">
-            <div className="p-4 border border-gray-200 rounded-lg">
-              <h3 className="font-medium text-gray-800">
-                {t('wastePrediction.optimalTiming')}
-              </h3>
-              <p className="text-gray-600">
-                {selectedCrop === 'rice' && t('wastePrediction.recommendations.rice.timing')}
-                {selectedCrop === 'wheat' && t('wastePrediction.recommendations.wheat.timing')}
-                {selectedCrop === 'corn' && t('wastePrediction.recommendations.corn.timing')}
-                {selectedCrop === 'sugarcane' && t('wastePrediction.recommendations.sugarcane.timing')}
-              </p>
-            </div>
-            
-            <div className="p-4 border border-gray-200 rounded-lg">
-              <h3 className="font-medium text-gray-800">
-                {t('wastePrediction.potentialBuyers')}
-              </h3>
-              <p className="text-gray-600">
-                {selectedCrop === 'rice' && t('wastePrediction.recommendations.rice.buyers')}
-                {selectedCrop === 'wheat' && t('wastePrediction.recommendations.wheat.buyers')}
-                {selectedCrop === 'corn' && t('wastePrediction.recommendations.corn.buyers')}
-                {selectedCrop === 'sugarcane' && t('wastePrediction.recommendations.sugarcane.buyers')}
-              </p>
-            </div>
-          </div>
-        </div>
+
+        {/* Predict Price Button */}
+        <button onClick={handlePredictPrice} disabled={isLoadingPrice || !predictedWaste} style={isLoadingPrice || !predictedWaste ? styles.buttonDisabled : styles.button}>
+          {isLoadingPrice ? "Predicting..." : "Predict Price"}
+        </button>
+
+        {/* Price Prediction Result */}
+        {wastePrice !== null && <p style={styles.result}>Predicted Price: ₹{wastePrice} per ton</p>}
       </div>
+
+      {/* Error Message */}
+      {error && <p style={styles.error}>{error}</p>}
     </div>
   );
-}
+};
 
-export default WastePrediction; 
+// ✅ Inline CSS Styles
+const styles = {
+  mainContainer: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "20px",
+    marginTop: "50px",
+    fontFamily: "Arial, sans-serif",
+  },
+  container: {
+    width: "400px",
+    padding: "20px",
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+    backgroundColor: "#f9f9f9",
+    textAlign: "center",
+  },
+  heading: {
+    color: "#333",
+  },
+  formGroup: {
+    marginBottom: "15px",
+  },
+  label: {
+    display: "block",
+    fontWeight: "bold",
+    marginBottom: "5px",
+  },
+  input: {
+    width: "100%",
+    padding: "8px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+  },
+  button: {
+    backgroundColor: "#28a745",
+    color: "white",
+    border: "none",
+    padding: "10px 15px",
+    cursor: "pointer",
+    borderRadius: "5px",
+  },
+  buttonDisabled: {
+    backgroundColor: "#aaa",
+    color: "white",
+    border: "none",
+    padding: "10px 15px",
+    cursor: "not-allowed",
+    borderRadius: "5px",
+  },
+  result: {
+    color: "green",
+    fontWeight: "bold",
+    marginTop: "10px",
+  },
+  error: {
+    color: "red",
+    fontWeight: "bold",
+    marginTop: "10px",
+  },
+};
+
+export default App;
